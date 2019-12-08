@@ -5,6 +5,15 @@ import math
 from statistics import mean,variance,stdev
 from math import exp, log, sqrt, pi
 from wallstreet import Stock, Call, Put
+from mpl_toolkits import mplot3d
+from matplotlib import cm
+from matplotlib import animation
+from mpl_toolkits.mplot3d import Axes3D
+
+def get_title():
+    print('Inserisci il titolo da analizzare :')
+    titolo = input()
+    return titolo
 
 def getData(title_name):
     quandl.ApiConfig.api_key = 'NxTUTAQswbKs5ybBbwfK'
@@ -39,15 +48,6 @@ def vanilla_call_price(S, K, r, v, T):
     """
     return S * norm_cdf(d_j(1, S, K, r, v, T)) - \
         K*exp(-r*T) * norm_cdf(d_j(2, S, K, r, v, T))
-
-def vanilla_put_price(S, K, r, v, T):
-    """
-    Price of a European put option struck at K, with
-    spot S, constant rate r, constant vol v (over the
-    life of the option) and time to maturity T
-    """
-    return -S * norm_cdf(-d_j(1, S, K, r, v, T)) + \
-        K*exp(-r*T) * norm_cdf(-d_j(2, S, K, r, v, T))
 
 def GMB_plot(mu,sigma,s0,T,delta_t,num_reps):
     steps = T/delta_t
@@ -93,33 +93,145 @@ def vega_call(S, S0, K, T, r, sigma):
     vega = S0 * prob_density * np.sqrt(T)    
     return vega
 
+# Plots delta, gamma and vega
+def plot_greek(s0, strike_call, T, mu, sigma):
+
+    s = np.array([range(int(strike_call-100),int(strike_call+100),1) for i in range(23)])
+    I = np.ones((np.shape(s)))
+    time = np.arange(1,12.5,0.5)/12
+    t = np.array([ele for ele in time for i in range(np.shape(s)[1])]).reshape(np.shape(s))
+
+    delta = np.zeros(np.shape(s))
+    gamma = np.zeros(np.shape(s))
+    vega = np.zeros(np.shape(s))
+
+
+    for i in range(np.shape(s)[0]):
+        for j in range(np.shape(s)[1]):
+            delta[i][j] = delta_call(s0, s[i][j], t[i][j], mu, sigma)
+            gamma[i][j] = gamma_call(s0, s[i][j], t[i][j], mu, sigma)
+            vega[i][j] = vega_call(s0,s0, s[i][j], t[i][j], mu, sigma)
+
+    delta = np.array(delta).reshape(np.shape(s))
+    gamma = np.array(gamma).reshape(np.shape(s))
+    vega = np.array(vega).reshape(np.shape(s))
+
+    fig = plt.figure(figsize=(20,11))
+
+    # PLOT DELTA
+    z = delta
+    ax = fig.add_subplot(221, projection='3d')
+    ax.view_init(40,290)
+    ax.plot_wireframe(s, t, z, rstride=1, cstride=1)
+    ax.plot_surface(s, t, z, facecolors=cm.jet(delta),linewidth=0.001, rstride=1, cstride=1, alpha = 0.75)
+    ax.set_zlim3d(0, z.max())
+    ax.set_xlabel('stock price')
+    ax.set_ylabel('Time to Expiration')
+    ax.set_zlabel('delta')
+    m = cm.ScalarMappable(cmap=cm.jet)
+    m.set_array(z)
+    cbar = plt.colorbar(m)
+
+    # PLOT GAMMA
+    z = gamma
+    ax = fig.add_subplot(222, projection='3d')
+    ax.view_init(40,290)
+    ax.plot_wireframe(s, t, z, rstride=1, cstride=1)
+    ax.plot_surface(s, t, z, facecolors=cm.jet(delta),linewidth=0.001, rstride=1, cstride=1, alpha = 0.75)
+    ax.set_zlim3d(0, z.max())
+    ax.set_xlabel('stock price')
+    ax.set_ylabel('Time to Expiration')
+    ax.set_zlabel('gamma')
+    m = cm.ScalarMappable(cmap=cm.jet)
+    m.set_array(z)
+    cbar = plt.colorbar(m)
+
+    # PLOT VEGA
+    z = vega
+    ax = fig.add_subplot(223, projection='3d')
+    ax.view_init(40,290)
+    ax.plot_wireframe(s, t, z, rstride=1, cstride=1)
+    ax.plot_surface(s, t, z, facecolors=cm.jet(delta),linewidth=0.001, rstride=1, cstride=1, alpha = 0.75)
+    ax.set_zlim3d(0, z.max())
+    ax.set_xlabel('stock price')
+    ax.set_ylabel('Time to Expiration')
+    ax.set_zlabel('vega')
+    m = cm.ScalarMappable(cmap=cm.jet)
+    m.set_array(z)
+    cbar = plt.colorbar(m)
+
+
+    plt.show()
+
+def covered_call(s0,k):
+
+    # INPUT DATA
+    c=6.30                      # Premium price of the option
+    shares = 100                # Shares per lot 
+    c = k
+
+
+    # Stock Price at expiration of the Call
+    sT = np.arange(0,2*s0,5)    
+
+    # Profit/loss from long stock position
+    y1= (sT-s0) * shares
+
+    # Payoff from a Short Call Option
+    y2 = np.where(sT > k,((k - sT) + c) * shares, c * shares)
+
+    # Payoff from a Covered Call
+    y3 = np.where(sT > k,((k - s0) + c) * shares,((sT- s0) + c) * shares )
+
+    # Create a plot using matplotlib    
+    fig, ax = plt.subplots()
+    ax.spines['top'].set_visible(False)   # Top border removed 
+    ax.spines['right'].set_visible(False) # Right border removed
+    ax.spines['bottom'].set_position('zero') # Sets the X-axis in the center
+    ax.tick_params(top=False, right=False) # Removes the tick-marks on the RHS
+
+    plt.plot(sT,y1,lw=1.5,label='Long Stock')
+    plt.plot(sT,y2,lw=1.5,label='Short Call')
+    plt.plot(sT,y3,lw=1.5,label='Covered Call')
+
+    plt.title('Covered Call')        
+    plt.xlabel('Stock Prices')
+    plt.ylabel('Profit/loss')
+
+    plt.grid(True)
+    plt.axis('tight')
+    plt.legend(loc=0)
+    plt.show()
+
 
 if __name__ == '__main__':
 
     # DATA COLLECTION
     nome = 'GOOG'
+
+    # nome = get_title()
+
     c = Call(nome, d=13, m=12, y=2019)      
-    mu,sigma,s0 = getData(nome)    # mu,sigma,s0
-    T = 3.0/12                       # maturita'
-    delta_t = 0.001     
-    num_reps = 500
-    strike_call = mean(c.strikes)
+    mu,sigma,s0 = getData(nome)         # mu,sigma,s0
+    T = 3.0/12                          # maturity
+    delta_t = 0.001                     # ?
+    num_reps = 100000                     # ?
+    
+    strike_call = mean(c.strikes)               
+    strike_call = c.strikes[len(c.strikes)-1]   
 
     # Plot the data
     #GMB_plot(mu,sigma,s0,T,delta_t,num_reps)
     
-    # Price Call
-    mc_call = mc_euro_options('c',s0,strike_call,T,mu,sigma,num_reps)
-    call = vanilla_call_price(s0,strike_call,mu,sigma,T)
-
-    # Greek
-    delta = delta_call(s0, strike_call, T, mu, sigma)
-    gamma = gamma_call(s0, strike_call, T, mu, sigma)
-    vega = vega_call(s0,s0, strike_call, T, mu, sigma)
+    # Price Call with MonteCarlo and GMB
+    #mc_call = mc_euro_options('c',s0,strike_call,T,mu,sigma,num_reps)
+    #call = vanilla_call_price(s0,strike_call,mu,sigma,T)
+    #print("MC CALL : " + str(mc_call))
+    #print("CALL_STD: " + str(call))
 
 
-    print("MC CALL : " + str(mc_call))
-    print("CALL_STD: " + str(call))
-    print("delta   : " + str(delta))
-    print("gamma   : " + str(gamma))
-    print("vega    : " + str(vega))
+    # Greek plot
+    #plot_greek(s0, strike_call, T, mu, sigma)
+
+    # Covered call plot
+    covered_call(s0,strike_call)
