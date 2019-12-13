@@ -1,15 +1,9 @@
 import quandl
 import numpy as np
 import matplotlib.pyplot as plt
-import math
-from statistics import mean,variance,stdev
-from math import exp, log, sqrt, pi
-from wallstreet import Stock, Call, Put
-from mpl_toolkits import mplot3d
-from matplotlib import cm
-from matplotlib import animation
-from mpl_toolkits.mplot3d import Axes3D
+from math import exp, sqrt
 
+# Funzione che, dato il ticker, ritorna media, varianza e s0
 def getData(title_name):
     quandl.ApiConfig.api_key = 'NxTUTAQswbKs5ybBbwfK'
     data = quandl.get('WIKI/' + title_name)
@@ -21,6 +15,7 @@ def getData(title_name):
     s0 = close[-1]
     return [mu,sigma,s0]
 
+# Funzione che simula con moto browniano geometrico e mostra il risultato in un grafico
 def GMB_plot(mu,sigma,s0,T,delta_t,num_reps):
     steps = T/delta_t
     plt.figure(figsize=(15,10))
@@ -53,7 +48,9 @@ if __name__ == '__main__':
     print('Inserisci il numero di simulazioni:')
     num_reps = int(input())
 
+    # Ricavo i dati da yahoo finance
     mu,sigma,s0 = getData(nome)                                       
     delta_t = 0.001                     
                         
+    # Eseguo la simulazione
     GMB_plot(mu,sigma,s0,T,delta_t,num_reps)

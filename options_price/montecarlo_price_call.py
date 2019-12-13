@@ -1,15 +1,11 @@
 import quandl
 import numpy as np
 import matplotlib.pyplot as plt
-import math
 from statistics import mean,variance,stdev
 from math import exp, log, sqrt, pi
-from wallstreet import Stock, Call, Put
-from mpl_toolkits import mplot3d
-from matplotlib import cm
-from matplotlib import animation
-from mpl_toolkits.mplot3d import Axes3D
+from wallstreet import Call
 
+# Funzione che, dato il ticker, ritorna media, varianza e s0
 def getData(title_name):
     quandl.ApiConfig.api_key = 'NxTUTAQswbKs5ybBbwfK'
     data = quandl.get('WIKI/' + title_name)
@@ -21,6 +17,7 @@ def getData(title_name):
     s0 = close[-1]
     return [mu,sigma,s0]
 
+# Normale per il calcolo della call
 def norm_cdf(x):
     k = 1.0/(1.0+0.2316419*x)
     k_sum = k * (0.319381530 + k * (-0.356563782 + \
@@ -31,14 +28,16 @@ def norm_cdf(x):
     else:
         return 1.0 - norm_cdf(-x)
 
+# Funzione per il calcolo della call
 def d_j(j, S, K, r, v, T):
     return (log(S/K) + (r + ((-1)**(j-1))*0.5*v*v)*T)/(v*(T**0.5))
 
+# Funzione che calcola la call
 def vanilla_call_price(S, K, r, v, T):
     return S * norm_cdf(d_j(1, S, K, r, v, T)) - \
         K*exp(-r*T) * norm_cdf(d_j(2, S, K, r, v, T))
 
-
+# Funzione che calcola montecarlo
 def mc_euro_options(option_type,s0,strike,maturity,r,sigma,num_reps):
     payoff_sum = 0
     for j in range(num_reps):
@@ -69,13 +68,15 @@ if __name__ == '__main__':
     print('Inserisci il numero di simulazioni:')
     num_reps = int(input())
 
+    # Ricavo i dati da yahoo finance
     mu,sigma,s0 = getData(nome)                                       
     delta_t = 0.001                     
 
+    # Ricavo i dati veri della strike call dal pacchetto wallstreet
     c = Call(nome, d=13, m=12, y=2019)  
     strike_call = c.strikes[len(c.strikes)-1]   
 
-    # Price Call with MonteCarlo and GMB
+    # Price Call con MonteCarlo e standard
     mc_call = mc_euro_options('c',s0,strike_call,T,mu,sigma,num_reps)
     call = vanilla_call_price(s0,strike_call,mu,sigma,T)
     print("Montecarlo price call : " + str(mc_call))
